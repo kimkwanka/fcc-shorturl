@@ -38,13 +38,13 @@ describe('Server', () => {
       expect(actual).to.equal(expected);
     });
   });
-  const shorten = (require('./server.js')).shorten; // eslint-disable-line global-require
+  const generateKey = (require('./server.js')).generateKey; // eslint-disable-line global-require
 
-  describe('shorten', () => {
-    it('should take a valid URL and return the URL as a number in base 36', () => {
-      const input = 'http://www.example.com';
-      const actual = shorten(input);
-      const expected = 831805;
+  describe('generateKey', () => {
+    it('should take a valid URL and return a hash key (number in base 36)', () => {
+      const input = 'www.exampleasdasdasdasdasdasdasdasdasdasdasd.com';
+      const actual = generateKey(input);
+      const expected = 's37sb6';
 
       expect(actual).to.equal(expected);
     });
