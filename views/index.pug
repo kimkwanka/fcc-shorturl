@@ -1,0 +1,34 @@
+doctype 5
+html
+  head
+    title='Kim Kwanka\'s' + title
+    link(rel='stylesheet', href='//cdnjs.cloudflare.com/ajax/libs/milligram/1.3.0/milligram.min.css')
+    link(rel='stylesheet', href='/css/style.css')
+  body
+    .stickyFooterWrapper
+      header
+        .container        
+          .row          
+              .column.column-50.column-offset-25
+                a(href='//kimkwanka.com' target='_blank' style='text-align:center') Kim Kwanka's
+                h1=title
+      .container        
+        .row          
+          .column.column-50.column-offset-25          
+            blockquote
+              h2 User stories:
+              p 1) I can pass a URL as a parameter and I will receive a shortened URL in the JSON response.
+              p 2) If I pass an invalid URL that doesn't follow the valid http://www.example.com format, the JSON response will contain an error instead.
+              p 3) When I visit that shortened URL, it will redirect me to my original link.
+            
+            h3 Example usage:
+            pre: code=url+'/api'
+
+            h3 Example output:
+            pre: code { "original_url":"http://foo.com:80", "short_url":url+"/XXXXXXXXXXX" }
+
+            h3 Usage:
+            pre: code url+'XXXXXXXXXX''
+              
+    footer
+          a(href='https://github.com/kimkwanka/fcc-reqheader' target='_blank') View source on Github
