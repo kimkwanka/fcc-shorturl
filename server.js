@@ -7,6 +7,16 @@ const app = express();
 // Use process.env.PORT if set for Heroku, AWS, etc.
 const port = process.env.PORT || 8080;
 
+const isValidURL = (url) => (
+  url.search(/^(https?:\/\/)?([\da-z\.-]+\.[a-z\.]{2,6}|[\d\.]+)([\/:?=&#]{1}[\da-z\.-]+)*[\/\?]?$/) !== -1
+);
+const shorten = (url) => (
+  parseInt(url, 36)
+);
+const extend = (num) => (
+  console.log(num.toString(10))
+);
+
 app.set('views', path.join(__dirname, '/views'));
 app.set('view engine', 'pug');
 
@@ -30,16 +40,8 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/api', (req, res) => {
-  const ip = req.headers['x-forwarded-for'] || req.ip;
-  const lang = req.acceptsLanguages()[0];
-  const soft = req.headers['user-agent'].match(/\(([^)]+)\)/)[1];
-
-  res.json({
-    ipaddress: ip,
-    language: lang,
-    software: soft,
-  });
+app.get('/shorten', (req, res) => {
+  res.end();
 });
 
 app.get('*', (req, res) => {
@@ -49,4 +51,8 @@ app.get('*', (req, res) => {
 app.listen(port);
 
 // export functions for testing in server-test.js
-module.exports = {};
+module.exports = {
+  isValidURL,
+  shorten,
+  extend,
+};
