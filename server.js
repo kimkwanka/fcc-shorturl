@@ -55,7 +55,7 @@ DB.setURI(mongoURI);
 app.get('/', (req, res) => {
   res.render('index', {
     title: 'URL Shortener',
-    url: 'https://shortgurl.herokuapp.com/',
+    url: 'https://shortgurl.herokuapp.com',
   });
 });
 
