@@ -22,13 +22,16 @@ html
               p 3) When I visit that shortened URL, it will redirect me to my original link.
             
             h3 Example usage:
-            pre: code=url+'/api'
+            pre: code=url+'/https://www.google.com'
+            pre: code=url+'/https://google.com'
+            pre: code=url+'/www.google.com'
+            pre: code=url+'/google.com'
 
             h3 Example output:
-            pre: code { "original_url":"http://foo.com:80", "short_url":url+"/XXXXXXXXXXX" }
+            pre: code { "shorturl":"http://shortgurl.herokuapp.com/-qzx08e", "url":"https://www.google.com" }
 
             h3 Usage:
             pre: code url+'XXXXXXXXXX''
               
     footer
-          a(href='https://github.com/kimkwanka/fcc-reqheader' target='_blank') View source on Github
+          a(href='https://github.com/kimkwanka/fcc-shorturl' target='_blank') View source on Github
