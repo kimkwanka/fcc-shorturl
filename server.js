@@ -1,19 +1,18 @@
 const express = require('express');
 const path = require('path');
 const stylus = require('stylus');
-const mongo = require('mongodb').MongoClient;
+
+const DB = (require('./db.js'));
 
 const app = express();
-
-let db;
 
 // Use process.env.PORT if set for Heroku, AWS, etc.
 const port = process.env.PORT || 8080;
 
-const mongoUrl = 'mongodb://localhost:27017/shorturl';
+const mongoURI = 'mongodb://localhost:27017/shorturl';
 
 const isValidURL = url => (
-  url.search(/^(https?:\/\/)?([\da-z\.-]+\.[a-z\.]{2,6}|[\d\.]+)([\/:?=&#]{1}[\da-z\.-]+)*[\/\?]?$/) !== -1 // eslint-disable-line no-useless-escape
+  url.search(/^(https?:\/\/)?(www\.)([\da-z-]+\.)+([\da-z-]{2,})|^(https?:\/\/)?(?!www.)([\da-z-]+\.)+([\da-z-]{2,})([\/:?=&#]{1}[\da-z\.-]+)*[\/\?]?/) !== -1 // eslint-disable-line no-useless-escape
 );
 
 // hashCode function taken from http://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
@@ -33,31 +32,7 @@ const generateKey = url => (
   hashCode(url).toString(36)
 );
 
-const saveURL = (url, cb) => {
-  console.log('Save what?', url);
-  const urlDoc = {
-    key: generateKey(url),
-    url,
-  };
-  const col = db.collection('shortenedUrls');
-  col.find({
-    key: urlDoc.key,
-  }).toArray((err1, docs) => {
-    if (err1) throw err1;
-    if (docs.length === 0) {
-      col.insert(urlDoc, (err2) => {
-        if (err2) throw err2;
-        // URL was added
-        console.log('Added:', urlDoc);
-        cb(urlDoc);
-      });
-    } else {
-      console.log('Already there:', urlDoc);
-      cb(urlDoc);
-    }
-  });
-};
-
+// Configure templating engine
 app.set('views', path.join(__dirname, '/views'));
 app.set('view engine', 'pug');
 
@@ -71,11 +46,23 @@ app.use(stylus.middleware({
     .set('compress', true)
   ),
 }));
-
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Establish MongoDB connection
+DB.connect(mongoURI, () => {
+  app.listen(port);
+});
+// Since we're reusing the MongoDB connection throughout the app
+// make sure to close it when the server is shut down
+process.on('SIGINT', () => {
+  DB.close();
+});
+process.on('SIGTERM', () => {
+  DB.close();
+});
+
+
 app.get('/', (req, res) => {
-  console.log('ROOT');
   res.render('index', {
     title: 'URL Shortener',
     url: 'https://XXXXXXXXXXX.com',
@@ -87,96 +74,57 @@ app.get('/favicon.ico', (req, res) => (
   res.sendStatus(204)
 ));
 
-app.get(/^\/(https?:\/\/)?(www\.)([\da-z-]+\.)+([\da-z-]{2,})|^\/(https?:\/\/)?(?!www.)([\da-z-]+\.)+([\da-z-]{2,})([\/:?=&#]{1}[\da-z\.-]+)*[\/\?]?/, (req, res) => { 
-//app.get(/^\/(https?:\/\/)?([\da-z\.-]+\.[a-z\.]{2,3}|[\d\.]+)([\/:?=&#]{1}[\da-z\.-]+)*[\/\?]?$/, (req, res) => {
-  console.log('Matched');
-  let ret = {
-    error: 'Invalid URL',
-  };
-  console.log( req.params);
-  let tmp = '';
-  // 8 capture groups in regex
-  for(let i=0; i<8 ;i++){ 
-    if(req.params[i]){
-      tmp += req.params[i];
-    }
-  }
-  req.param
-  const urlStr = tmp;
-  const col = db.collection('shortenedUrls');
+// Match every route starting with a forward slash /
+app.get(/\/(.+)/, (req, res, next) => {
+  console.log('ROUTE 1');
+// Try interpreting param as a shortened URL.
+// If it's found in the DB, redirect to the corresponding long URL.
+  const param = req.params[0];
 
-  col.find({
-    key: urlStr,
-  }).toArray((err1, docs) => {
-    if (err1) throw err1;
-    if (docs.length !== 0) {
-      res.redirect(docs[0].url);
-      //res.json({ redirect: docs[0].url });
+  DB.find({ shorturl: param }, (docs) => {
+    if (docs !== null) {
+      console.log('Found Key ', param, docs[0]);
+      const redirectUrl = (docs[0].url.indexOf('http') !== -1) ? docs[0].url : `http://${docs[0].url}`;
+      res.redirect(redirectUrl);
     } else {
-      if (true) {
-        // console.log('Not a key, but valid URL');
-        saveURL(urlStr, (r) => {
-          ret = {
-            url: r.url,
-            shortUrl: req.protocol + '://' + req.get('host') + '/' + r.key,
-          };
-          // console.log('ret', ret);
-          res.json(ret);
-        });
-      } else {
-        res.json(ret);
-      }
+      console.log('Didn\'t find key ', param);
+      next();
     }
   });
 });
-
-app.get('/:urlStr', (req, res) => {
-  console.log('Simple Match', req.params.urlStr);
-  const col = db.collection('shortenedUrls');
-
-  col.find({
-    key: req.params.urlStr,
-  }).toArray((err1, docs) => {
-    console.log('have I found it?');
-    if (err1) throw err1;
-    if (docs.length !== 0) {
-      let addition = '';
-      if(docs[0].url.indexOf('http') === -1){
-        addition = 'http://';
-      }
-      console.log('Simple redirect',err1, addition + docs[0].url)
-      res.redirect(addition + docs[0].url);
-      console.log('before crash');
-    } else {
-      console.log('before crash');
-      let ret = {
-        error: 'Invalid URL :O',
+app.get(/\/(.+)/, (req, res) => {
+  console.log('ROUTE 2');
+  const param = req.params[0];
+// Try to interpret param as a long URL.
+// If it's a valid URL and not found in the DB, add it.
+// In any case, return corresponding JSON.
+  if (isValidURL(param)) {
+    DB.find({ url: param }, (docs) => {
+      const ret = {
+        shorturl: generateKey(param),
+        url: param,
       };
-      res.json(ret);
-    }
-  });
-  
+      if (!docs) {
+        console.log('Didn\'t find URL, saving...', param);
+        res.json(ret);
+        DB.save(ret, () => {
+          console.log('Saved.');
+        });
+      } else {
+        console.log('URL already in DB. No need to save.', param);
+        res.json(ret);
+      }
+    });
+  } else {
+    console.log('Invalid URL', param);
+    res.json({
+      error: 'Invalid URL',
+    });
+  }
 });
 
 app.get('*', (req, res) => {
-  
-  console.log('Should I ever land here?');
-  //let ret = {
-  //  error: 'Invalid URL',
-  //};
-  //res.json(ret);
-  //res.render('404', {});
   res.render('404', {});
-});
-
-mongo.connect(mongoUrl, (err, _db) => {
-  if (err) throw err;
-  db = _db;
-  app.listen(port);
-});
-
-process.on('SIGINT', () => {
-  db.close();
 });
 
 // export functions for testing in server-test.js

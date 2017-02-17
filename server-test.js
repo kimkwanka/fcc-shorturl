@@ -23,6 +23,20 @@ describe('Server', () => {
 
       expect(actual).to.equal(expected);
     });
+    it('should take an URL and return true if it\'s a valid URL in http://www.example.com format like www.example.com', () => {
+      const input = 'www.example.com';
+      const actual = isValidURL(input);
+      const expected = true;
+
+      expect(actual).to.equal(expected);
+    });
+    it('should take an URL and return true if it\'s a valid URL in http://www.example.com format like example.com', () => {
+      const input = 'example.com';
+      const actual = isValidURL(input);
+      const expected = true;
+
+      expect(actual).to.equal(expected);
+    });
     it('should take an URL and return false if it\'s not a valid URL in http://www.example.com format like http://www.example', () => {
       const input = 'http://www.example';
       const actual = isValidURL(input);
