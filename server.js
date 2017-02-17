@@ -9,7 +9,8 @@ const app = express();
 // Use process.env.PORT if set for Heroku, AWS, etc.
 const port = process.env.PORT || 8080;
 
-const mongoURI = 'mongodb://localhost:27017/shorturl';
+// Use process.env.MONGOLAB_URI if set for mLab
+const mongoURI = process.env.MONGOLAB_URI || 'mongodb://localhost:27017/shorturl';
 
 const isValidURL = url => (
   url.search(/^(https?:\/\/)?(www\.)([\da-z-]+\.)+([\da-z-]{2,})|^(https?:\/\/)?(?!www.)([\da-z-]+\.)+([\da-z-]{2,})([\/:?=&#]{1}[\da-z\.-]+)*[\/\?]?/) !== -1 // eslint-disable-line no-useless-escape
@@ -48,19 +49,8 @@ app.use(stylus.middleware({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Establish MongoDB connection
-DB.connect(mongoURI, () => {
-  app.listen(port);
-});
-// Since we're reusing the MongoDB connection throughout the app
-// make sure to close it when the server is shut down
-process.on('SIGINT', () => {
-  DB.close();
-});
-process.on('SIGTERM', () => {
-  DB.close();
-});
-
+// Set URI for MongoDB
+DB.setURI(mongoURI);
 
 app.get('/', (req, res) => {
   res.render('index', {
@@ -76,47 +66,43 @@ app.get('/favicon.ico', (req, res) => (
 
 // Match every route starting with a forward slash /
 app.get(/\/(.+)/, (req, res, next) => {
-  console.log('ROUTE 1');
-// Try interpreting param as a shortened URL.
-// If it's found in the DB, redirect to the corresponding long URL.
+  // Try interpreting param as a shortened URL.
+  // If it's found in the DB, redirect to the corresponding long URL.
   const param = req.params[0];
 
-  DB.find({ shorturl: param }, (docs) => {
+  DB.find({
+    shorturl: `${req.protocol}://${req.get('host')}/${param}`,
+  }, (docs) => {
     if (docs !== null) {
-      console.log('Found Key ', param, docs[0]);
       const redirectUrl = (docs[0].url.indexOf('http') !== -1) ? docs[0].url : `http://${docs[0].url}`;
       res.redirect(redirectUrl);
     } else {
-      console.log('Didn\'t find key ', param);
       next();
     }
   });
 });
+
 app.get(/\/(.+)/, (req, res) => {
-  console.log('ROUTE 2');
   const param = req.params[0];
-// Try to interpret param as a long URL.
-// If it's a valid URL and not found in the DB, add it.
-// In any case, return corresponding JSON.
+  // Try to interpret param as a long URL.
+  // If it's a valid URL and not found in the DB, add it.
+  // In any case, return corresponding JSON.
   if (isValidURL(param)) {
-    DB.find({ url: param }, (docs) => {
+    DB.find({
+      url: param,
+    }, (docs) => {
       const ret = {
-        shorturl: generateKey(param),
+        shorturl: `${req.protocol}://${req.get('host')}/${generateKey(param)}`,
         url: param,
       };
       if (!docs) {
-        console.log('Didn\'t find URL, saving...', param);
         res.json(ret);
-        DB.save(ret, () => {
-          console.log('Saved.');
-        });
+        DB.save(ret);
       } else {
-        console.log('URL already in DB. No need to save.', param);
         res.json(ret);
       }
     });
   } else {
-    console.log('Invalid URL', param);
     res.json({
       error: 'Invalid URL',
     });
@@ -127,7 +113,20 @@ app.get('*', (req, res) => {
   res.render('404', {});
 });
 
-// export functions for testing in server-test.js
+const server = app.listen(port);
+
+// Make sure to shutdown server when process ends to free the port
+process.on('SIGINT', () => {
+  server.close();
+});
+process.on('SIGTERM', () => {
+  server.close();
+});
+process.on('SIGUSR2', () => {
+  server.close();
+});
+
+// Export functions for testing in server-test.js
 module.exports = {
   isValidURL,
   generateKey,
