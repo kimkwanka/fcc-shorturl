@@ -117,14 +117,17 @@ const server = app.listen(port);
 
 // Make sure to shutdown server when process ends to free the port
 process.on('SIGINT', () => {
+  console.log('SIGINT: Shutting down server.');
   server.close();
 });
 process.on('SIGTERM', () => {
+  console.log('SIGTERM: Shutting down server.');
   server.close();
 });
-process.on('SIGUSR2', () => {
+/* Closing on SIGUSR2 somehow breaks browser reflecting changes, so uncomment for now
+  process.on('SIGUSR2', () => {
   server.close();
-});
+});*/
 
 // Export functions for testing in server-test.js
 module.exports = {
